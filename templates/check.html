@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmCast Weather Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a3c34 0%, #4a3726 100%);
+            overflow-x: hidden;
+        }
+        h1, h2, h3, h4 {
+            font-family: 'Poppins', sans-serif;
+        }
+        .glassmorphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+        }
+        .cloud-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            filter: blur(20px);
+            animation: drift 20s linear infinite;
+        }
+        @keyframes drift {
+            0% { transform: translateX(-100vw); }
+            100% { transform: translateX(100vw); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .slide-up {
+            animation: slideUp 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        @keyframes slideUp {
+            0% { transform: translateY(20px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        #map { min-height: 300px; }
+        .input-focus {
+            transition: all 0.3s ease;
+        }
+        .input-focus:focus {
+            transform: scale(1.02);
+            background: #374151;
+        }
+        @media (max-width: 640px) {
+            .container { padding: 1rem; }
+            h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen flex flex-col items-center p-4 sm:p-6">
+    <!-- Cloud Background Animation -->
+    <div class="cloud-bg">
+        <div class="cloud w-64 h-32 top-20 left-0 opacity-50"></div>
+        <div class="cloud w-48 h-24 top-40 -left-10 opacity-30" style="animation-delay: -5s;"></div>
+        <div class="cloud w-80 h-40 top-60 -left-20 opacity-40" style="animation-delay: -10s;"></div>
+    </div>
+    <div class="container w-full max-w-4xl glassmorphism shadow-2xl p-6 sm:p-8 animate-slide-up space-y-6 relative z-10">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-green-400">🌾 FarmCast Weather Hub</h1>
+            <div class="flex items-center space-x-4">
+                <span class="text-gray-300">Welcome, {{ username }}!</span>
+                <a href="{{ url_for('logout') }}" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all">Logout</a>
+            </div>
+        </div>
+        <!-- Search Bar -->
+        <div class="relative">
+            <input id="cityInput" list="suggestions" placeholder="Search for a city..."
+                   class="w-full p-4 pl-12 bg-gray-700 rounded-xl border border-gray-600 input-focus text-gray-100"
+                   oninput="fetchCitySuggestions(this.value)">
+            <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <datalist id="suggestions"></datalist>
+        </div>
+        <!-- Date Picker -->
+        <input type="date" id="dateInput"
+               class="w-full p-3 rounded-xl bg-gray-700 border border-gray-600 input-focus text-gray-100">
+        <!-- Action Buttons and Notifications -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button onclick="getWeather()" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all transform hover:scale-105">
+                Search Weather
+            </button>
+            <button onclick="getLocationWeather()" class="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold transition-all transform hover:scale-105">
+                Use My Location
+            </button>
+            <label class="flex items-center justify-center space-x-2 bg-gray-700 p-3 rounded-xl">
+                <input type="checkbox" id="notifications" checked class="h-4 w-4 text-green-600">
+                <span class="text-gray-300 text-sm">Enable Weather Alerts</span>
+            </label>
+        </div>
+        <!-- Favorite Cities -->
+        <select id="favoriteCities" onchange="selectFavorite(this)"
+                class="w-full p-3 bg-gray-700 rounded-xl border border-gray-600 input-focus text-gray-100">
+            <option value="">Select a favorite city</option>
+        </select>
+        <!-- Weather Result -->
+        <div id="result" class="hidden p-6 bg-gray-800 rounded-xl shadow-inner animate-fade-in"></div>
+        <!-- Map and Chart -->
+        <div id="map" class="rounded-xl hidden overflow-hidden"></div>
+        <canvas id="forecastChart" class="hidden mt-6 rounded-xl shadow-inner"></canvas>
+        <div id="weeklyForecast" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 overflow-x-auto hidden"></div>
+    </div>
+    <!-- Leaf Particle Effect -->
+    <canvas id="particleCanvas" class="absolute inset-0 z-0"></canvas>
+    <script>
+        // Leaf Particle Effect
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const particles = [];
+        const particleCount = 50;
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 5 + 3;
+                this.speedY = Math.random() * 1 + 0.5;
+                this.speedX = Math.random() * 0.5 - 0.25;
+                this.angle = Math.random() * 360;
+            }
+            update() {
+                this.y += this.speedY;
+                this.x += this.speedX;
+                this.angle += 0.1;
+                if (this.y > canvas.height) {
+                    this.y = 0;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle * Math.PI / 180);
+                ctx.fillStyle = 'rgba(34, 197, 94, 0.7)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size, this.size / 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function initParticles() {
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            requestAnimationFrame(animateParticles);
+        }
+
+        initParticles();
+        animateParticles();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        function showError(message) {
+            const result = document.getElementById('result');
+            result.classList.remove('hidden');
+            result.innerHTML = `<p class="text-red-500 text-center">${message}</p>`;
+        }
+
+        async function fetchCitySuggestions(query) {
+            if (!query || query.length < 3) {
+                document.getElementById('suggestions').innerHTML = '';
+                return;
+            }
+            try {
+                const response = await fetch(`/get-city-suggestions?query=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                if (data.cod !== 200) throw new Error(data.message);
+                const suggestions = document.getElementById('suggestions');
+                suggestions.innerHTML = data.cities.map(city => `<option value="${city.name}, ${city.country}">${city.name}, ${city.country}</option>`).join('');
+            } catch (error) {
+                console.error('City suggestions error:', error);
+            }
+        }
+
+        async function getWeather() {
+            const city = document.getElementById('cityInput').value;
+            const date = document.getElementById('dateInput').value;
+            if (!city) return showError('Please enter a city');
+            try {
+                const result = document.getElementById('result');
+                result.classList.remove('hidden');
+                result.innerHTML = '<p class="text-center">Fetching weather...</p>';
+
+                const response = await fetch(`/get-weather?city=${encodeURIComponent(city)}`);
+                const data = await response.json();
+                if (data.cod !== 200) throw new Error(data.message);
+                
+                displayWeather(data);
+                await fetchForecast(city, date);
+                await fetchWeeklyForecast(data.lat, data.lon);
+                updateMap(data.lat, data.lon);
+                saveFavorite(data.name);
+            } catch (error) {
+                showError(error.message || 'Failed to fetch weather data');
+            }
+        }
+
+        async function getLocationWeather() {
+            try {
+                if (!navigator.geolocation) throw new Error('Geolocation not supported');
+                const result = document.getElementById('result');
+                result.classList.remove('hidden');
+                result.innerHTML = '<p class="text-center">Fetching your location...</p>';
+
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const { latitude, longitude } = position.coords;
+                        try {
+                            const response = await fetch(`/get-weather?lat=${latitude}&lon=${longitude}`);
+                            const data = await response.json();
+                            if (data.cod !== 200) throw new Error(data.message);
+                            
+                            displayWeather(data);
+                            await fetchForecast(data.name, document.getElementById('dateInput').value);
+                            await fetchWeeklyForecast(latitude, longitude);
+                            updateMap(latitude, longitude);
+                        } catch (error) {
+                            showError(error.message || 'Failed to fetch location-based weather');
+                        }
+                    },
+                    () => showError('Location access denied')
+                );
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function displayWeather(data) {
+            const result = document.getElementById('result');
+            result.classList.remove('hidden');
+            const icon = `https://openweathermap.org/img/wn/${data.icon}@2x.png`;
+            const localTime = new Date().toLocaleString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            result.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xl font-bold text-green-400">${data.name}</h2>
+                    <img src="${icon}" alt="icon" class="w-12 h-12">
+                </div>
+                <p class="text-sm italic mb-4 text-gray-400">${localTime}</p>
+                <p class="text-lg">🌡️ Temperature: ${data.temp}°C</p>
+                <p class="text-md text-gray-300">💧 Humidity: ${data.humidity}%</p>
+                <p class="text-md text-gray-300">🌬️ Wind: ${data.wind_speed} m/s</p>
+                <p class="text-md mt-2 text-gray-300">${data.description}</p>
+                <p class="text-md mt-2 text-gray-300">🌱 Crop Recommendation: ${data.temp > 20 ? 'Plant wheat, irrigate tomatoes.' : 'Delay planting due to cold.'}</p>
+                <p class="text-md text-gray-300">🌍 Soil Moisture: ${data.humidity > 60 ? 'Optimal' : 'Needs irrigation'}</p>
+            `;
+        }
+
+        async function fetchForecast(city, date) {
+            try {
+                const response = await fetch(`/get-forecast?city=${encodeURIComponent(city)}`);
+                const data = await response.json();
+                if (data.cod !== 200) throw new Error(data.message);
+
+                let forecast = data.forecast;
+                if (date) {
+                    const selectedDate = new Date(date).toISOString().split('T')[0];
+                    forecast = forecast.filter(item => item.dt_txt.includes(selectedDate));
+                }
+
+                const labels = [];
+                const temps = [];
+                forecast.forEach((entry, index) => {
+                    if (!date || index % 8 === 0) {
+                        labels.push(new Date(entry.dt_txt).toLocaleDateString('en-US', { weekday: 'short', hour: '2-digit' }));
+                        temps.push(entry.temp);
+                    }
+                });
+
+                const ctx = document.getElementById('forecastChart').getContext('2d');
+                document.getElementById('forecastChart').classList.remove('hidden');
+
+                if (window.myChart) window.myChart.destroy();
+                window.myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Temp (°C)',
+                            data: temps,
+                            borderColor: '#22c55e',
+                            backgroundColor: '#22c55e88',
+                            fill: true,
+                            tension: 0.3,
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                    },
+                });
+            } catch (error) {
+                console.error('Forecast error:', error);
+            }
+        }
+
+        async function fetchWeeklyForecast(lat, lon) {
+            try {
+                const response = await fetch(`/get-weekly-forecast?lat=${lat}&lon=${lon}`);
+                const data = await response.json();
+                if (data.cod !== 200) throw new Error(data.message);
+
+                const container = document.getElementById('weeklyForecast');
+                container.innerHTML = '';
+                container.classList.remove('hidden');
+
+                data.forecast.forEach((item) => {
+                    const card = document.createElement('div');
+                    card.className = 'p-4 min-w-[120px] glassmorphism rounded-xl flex flex-col items-center shadow-md';
+                    card.innerHTML = `
+                        <div class="text-sm text-gray-400">${item.day}</div>
+                        <img src="${item.icon}" alt="icon" class="w-8 h-8 my-2">
+                        <div class="text-md font-semibold text-green-400">${item.max_temp}° / ${item.min_temp}°</div>
+                        <div class="text-xs text-gray-300">${item.max_temp > 20 ? 'Good for planting' : 'Monitor crops'}</div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Weekly forecast error:', error);
+            }
+        }
+
+        function updateMap(lat, lon) {
+            const mapDiv = document.getElementById('map');
+            mapDiv.classList.remove('hidden');
+
+            if (window.weatherMap) {
+                window.weatherMap.setView([lat, lon], 10);
+                return;
+            }
+
+            window.weatherMap = L.map('map').setView([lat, lon], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+            }).addTo(window.weatherMap);
+            L.marker([lat, lon]).addTo(window.weatherMap).bindPopup('Your Farm Location');
+        }
+
+        function saveFavorite(city) {
+            let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            if (!favorites.includes(city)) {
+                favorites.push(city);
+                localStorage.setItem('favorites', JSON.stringify(favorites));
+                loadFavorites();
+            }
+        }
+
+        function loadFavorites() {
+            const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+            const select = document.getElementById('favoriteCities');
+            select.innerHTML = '<option value="">Select a favorite city</option>';
+            favorites.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                select.appendChild(option);
+            });
+        }
+
+        function selectFavorite(el) {
+            if (el.value) {
+                document.getElementById('cityInput').value = el.value;
+                getWeather();
+            }
+        }
+
+        loadFavorites();
+    </script>
+</body>
+</html>

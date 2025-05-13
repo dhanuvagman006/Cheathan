@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - User Analytics</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .admin-header {
+            background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .user-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            transition: transform 0.2s;
+        }
+        .user-card:hover {
+            transform: translateY(-5px);
+        }
+        .search-history {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .search-badge {
+            background: #e9ecef;
+            color: #495057;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            margin: 0.25rem;
+            display: inline-block;
+        }
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .stats-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #4b6cb7;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <div class="container">
+            <h1><i class="fas fa-user-shield me-2"></i>Admin Dashboard</h1>
+            <p class="lead">User Analytics and Search History</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Stats Overview -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <i class="fas fa-users stats-icon"></i>
+                    <h3>{{ users|length }}</h3>
+                    <p class="text-muted">Total Users</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <i class="fas fa-globe stats-icon"></i>
+                    <h3>
+                        {% set total_searches = 0 %}
+                        {% for user in users %}
+                            {% set total_searches = total_searches + user.searched_locations|length %}
+                        {% endfor %}
+                        {{ total_searches }}
+                    </h3>
+                    <p class="text-muted">Total Searches</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card text-center">
+                    <i class="fas fa-map-marker-alt stats-icon"></i>
+                    <h3>
+                        {% set countries = [] %}
+                        {% for user in users %}
+                            {% if user.country not in countries %}
+                                {% set _ = countries.append(user.country) %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ countries|length }}
+                    </h3>
+                    <p class="text-muted">Unique Countries</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Cards -->
+        {% for user in users %}
+        <div class="user-card p-4">
+            <div class="row">
+                <div class="col-md-8">
+                    <h3><i class="fas fa-user me-2"></i>{{ user.username }}</h3>
+                    <p class="text-muted mb-2"><i class="fas fa-envelope me-2"></i>{{ user.email }}</p>
+                    <p class="text-muted mb-2"><i class="fas fa-phone me-2"></i>{{ user.phone }}</p>
+                    <p class="text-muted mb-2"><i class="fas fa-map-marker-alt me-2"></i>{{ user.country }}</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <span class="badge bg-primary">{{ user.searched_locations|length }} Searches</span>
+                </div>
+            </div>
+            
+            {% if user.searched_locations %}
+            <div class="search-history mt-3">
+                <h5><i class="fas fa-history me-2"></i>Search History</h5>
+                <div class="mt-2">
+                    {% for location in user.searched_locations %}
+                    <span class="search-badge">
+                        <i class="fas fa-search me-1"></i>{{ location }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="search-history mt-3">
+                <p class="text-muted"><i class="fas fa-info-circle me-2"></i>No search history available</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
