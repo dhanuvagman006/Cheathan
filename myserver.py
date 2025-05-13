@@ -17,7 +17,7 @@ CORS(app)  # Enable CORS for cross-origin requests
 
 # Configuration
 BASE_URL = "http://api.openweathermap.org/data/2.5"
-API_KEY = "ff7e2bdaf7c38b91b5b184c9576424ca"
+API_KEY = "add your api key here"
 
 USERS_FILE = 'users.json'
 
