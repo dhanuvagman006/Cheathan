@@ -133,6 +133,26 @@
                 <p class="text-muted"><i class="fas fa-info-circle me-2"></i>No search history available</p>
             </div>
             {% endif %}
+
+            {% if user.messages %}
+            <div class="search-history mt-3">
+                <h5><i class="fas fa-envelope me-2"></i>Contact Messages</h5>
+                <div class="mt-2">
+                    {% for message in user.messages %}
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                <i class="fas fa-user me-1"></i>{{ message.name }} 
+                                <small class="ms-2"><i class="fas fa-clock me-1"></i>{{ message.timestamp }}</small>
+                            </h6>
+                            <p class="card-text">{{ message.message }}</p>
+                            <p class="card-text"><small class="text-muted"><i class="fas fa-envelope me-1"></i>{{ message.email }}</small></p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
     </div>

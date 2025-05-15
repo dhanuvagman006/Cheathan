@@ -136,6 +136,7 @@
                     <a href="#about" class="nav-link text-gray-300 px-3 py-2 rounded-md text-sm font-medium">About Us</a>
                     <a href="#contact" class="nav-link text-gray-300 px-3 py-2 rounded-md text-sm font-medium">Contact</a>
                     <a href="#services" class="nav-link text-gray-300 px-3 py-2 rounded-md text-sm font-medium">Services</a>
+                    
                     <a href="{{ url_for('logout') }}" class="nav-link text-gray-300 px-3 py-2 rounded-md text-sm font-medium">Logout</a>
                 </div>
             </div>
@@ -147,7 +148,7 @@
         <div class="text-center max-w-2xl mx-auto px-4 relative z-10 fade-in">
             <h2 class="text-5xl font-bold text-white mb-4">Welcome, {{ username }}!</h2>
             <p class="text-2xl text-green-300 mb-6 animate-pulse">Grow Smarter with Weather Insights</p>
-            <p class="text-gray-300">Your farm’s weather, forecasted for success.</p>
+            <p class="text-gray-300">Your farm's weather, forecasted for success.</p>
         </div>
     </section>
     <!-- Dashboard Section -->
@@ -207,7 +208,7 @@
             </p>
             <div class="flex justify-center">
                 <div class="bg-gray-800 p-6 rounded-lg shadow-md max-w-md w-full">
-                    <form method="POST" class="space-y-4">
+                    <form method="POST" action="{{ url_for('contact') }}" class="space-y-4">
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-300">Name</label>
                             <input type="text" name="name" id="name" required

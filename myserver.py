@@ -296,10 +296,46 @@ def admin():
             'email': email,
             'phone': data.get('phone', 'N/A'),
             'country': data.get('country', 'N/A'),
-            'searched_locations': data.get('searched_locations', [])
+            'searched_locations': data.get('searched_locations', []),
+            'messages': data.get('messages', [])  # Add messages to user details
         })
     
     return render_template('admin.html', users=user_details)
+
+@app.route('/contact', methods=['POST'])
+def contact():
+    if 'username' not in session:
+        flash('Please login first.', 'danger')
+        return redirect(url_for('login'))
+    
+    name = request.form.get('name')
+    email = request.form.get('email')
+    message = request.form.get('message')
+    
+    if not all([name, email, message]):
+        flash('All fields are required', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    users = load_users()
+    user_email = session['email']
+    
+    if user_email in users:
+        if 'messages' not in users[user_email]:
+            users[user_email]['messages'] = []
+        
+        users[user_email]['messages'].append({
+            'name': name,
+            'email': email,
+            'message': message,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+        save_users(users)
+        flash('Message sent successfully!', 'success')
+    else:
+        flash('Error sending message', 'danger')
+    
+    return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)

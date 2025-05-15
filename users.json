@@ -1,0 +1,17 @@
+{
+    "test@gmail.com": {
+        "username": "Dhanush",
+        "password": "987654321",
+        "email": "test@gmail.com",
+        "phone": "6360139965",
+        "country": "india",
+        "messages": [
+            {
+                "name": "Dhanush",
+                "email": "test@gmail.com",
+                "message": "What a nice plant bro",
+                "timestamp": "2025-05-15 06:24:01"
+            }
+        ]
+    }
+}
