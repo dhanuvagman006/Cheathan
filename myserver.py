@@ -281,12 +281,10 @@ def get_city_suggestions():
 
 @app.route('/admin')
 def admin():
-    if 'username' not in session:
-        flash('Please login first.', 'danger')
-        return redirect(url_for('login'))
+    if 'admin_logged_in' not in session:
+        flash('Please login as admin first.', 'danger')
+        return redirect(url_for('admin_login'))
     
-    # For now, we'll allow any logged-in user to access admin
-    # In a real application, you should add proper admin authentication
     users = load_users()
     user_details = []
     
@@ -297,10 +295,31 @@ def admin():
             'phone': data.get('phone', 'N/A'),
             'country': data.get('country', 'N/A'),
             'searched_locations': data.get('searched_locations', []),
-            'messages': data.get('messages', [])  # Add messages to user details
+            'messages': data.get('messages', [])
         })
     
     return render_template('admin.html', users=user_details)
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if username == 'admin' and password == 'admin':
+            session['admin_logged_in'] = True
+            flash('Welcome to the admin dashboard!', 'success')
+            return redirect(url_for('admin'))
+        else:
+            flash('Invalid admin credentials', 'danger')
+    
+    return render_template('admin_login.html')
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged_in', None)
+    flash('You have been logged out from admin panel', 'info')
+    return redirect(url_for('admin_login'))
 
 @app.route('/contact', methods=['POST'])
 def contact():
